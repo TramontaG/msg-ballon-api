@@ -15,6 +15,7 @@ const styleOverrideSchema = z
 		quotedTextColor: hexColor.optional(),
 		timeColor: hexColor.optional(),
 		authorColor: hexColor.optional(),
+		avatarSize: z.number().int().min(24).max(160).optional(),
 	})
 	.strict()
 	.optional();
