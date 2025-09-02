@@ -69,6 +69,7 @@ app.post('/render', async (req, res, next) => {
 			quotedTextColor: palette.quotedTextColor,
 			timeColor: palette.timeColor,
 			authorColor: palette.authorColor,
+
 			// fontes (opcionais)
 			...(fonts?.authorFont ? { authorFont: fonts.authorFont } : {}),
 			...(fonts?.quotedFont ? { quotedFont: fonts.quotedFont } : {}),

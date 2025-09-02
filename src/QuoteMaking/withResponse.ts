@@ -90,7 +90,7 @@ export async function createMessageBubble(
 				(qMet.actualBoundingBoxAscent ?? 12) + (qMet.actualBoundingBoxDescent ?? 4)
 			) + 2;
 		quotedLines = wrapText(meas, replySnippet, textMaxW - barW - barGap);
-		quotedH = authorH + 4 + quotedLines.length * quotedLineH;
+		quotedH = authorH + 4 + quotedLines.length * (quotedLineH + 4);
 	}
 
 	meas.font = bodyFont;
@@ -171,20 +171,20 @@ export async function createMessageBubble(
 	if (mode === 'reply' && replyAuthor && replySnippet) {
 		// barra
 		ctx.fillStyle = quotedBarColor;
-		ctx.fillRect(x, y, barW, quotedH + 8);
+		ctx.fillRect(x, y, barW, quotedH + 8 + quotedLines.length);
 
 		const qx = x + barW + barGap;
 		ctx.font = authorFont;
 		ctx.fillStyle = quotedHeaderColor;
 		ctx.textBaseline = 'top';
 		ctx.fillText(replyAuthor, qx, y);
-		y += authorH + 8;
+		y += authorH + 8 + 4;
 
 		ctx.font = quotedFont;
 		ctx.fillStyle = quotedTextColor;
 		for (const ln of quotedLines) {
 			ctx.fillText(ln, qx, y);
-			y += quotedLineH;
+			y += quotedLineH + 4;
 		}
 
 		y += betweenQuoteAndBody;
