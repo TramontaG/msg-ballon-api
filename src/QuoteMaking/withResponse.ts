@@ -58,10 +58,10 @@ export async function createMessageBubble(
 	const barW = 5;
 	const barGap = 8;
 
-	const authorFont = opts.authorFont ?? 'bold 32px Arial';
+	const authorFont = opts.authorFont ?? 'bold 36px Arial';
 	const quotedFont = opts.quotedFont ?? '32px Arial';
 	const bodyFont = opts.bodyFont ?? '32px Arial';
-	const timeFont = opts.timeFont ?? '26px Arial';
+	const timeFont = opts.timeFont ?? '24px Arial';
 
 	// === MEDIÇÃO ===
 	const meas = canvas
