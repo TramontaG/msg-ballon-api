@@ -102,7 +102,7 @@ export function drawInitialsAvatar(
 	size: number,
 	background = '#94a3b8',
 	color = '#ffffff',
-	font = 'bold 28px Arial'
+	font = 'bold 28px "Noto Sans"'
 ) {
 	const r = size / 2;
 	ctx.save();

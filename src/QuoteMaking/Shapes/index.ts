@@ -1,4 +1,5 @@
 import * as canvas from 'canvas';
+import { measureTextWithEmoji } from '../Emoji';
 
 export const roundRect = (
 	ctx: canvas.CanvasRenderingContext2D,
@@ -54,18 +55,18 @@ export const wrapText = (
 
 		for (const token of words) {
 			const test = current + token;
-			if (ctx.measureText(test).width <= maxWidth) {
+			if (measureTextWithEmoji(ctx, test) <= maxWidth) {
 				current = test;
 				continue;
 			}
 
 			// token sozinho já estoura? quebra por grafema
-			if (ctx.measureText(token).width > maxWidth) {
+			if (measureTextWithEmoji(ctx, token) > maxWidth) {
 				const chars = splitGraphemes(token);
 				let buf = current;
 				for (const ch of chars) {
 					const t2 = buf + ch;
-					if (ctx.measureText(t2).width <= maxWidth) {
+					if (measureTextWithEmoji(ctx, t2) <= maxWidth) {
 						buf = t2;
 					} else {
 						lines.push(buf.trimEnd());
@@ -90,7 +91,7 @@ export const wrapText = (
 	if (lines.length > maxLines) {
 		const clipped = lines.slice(0, maxLines);
 		let last = clipped[clipped.length - 1];
-		while (ctx.measureText(last + ellipsis).width > maxWidth && last.length > 0) {
+		while (measureTextWithEmoji(ctx, last + ellipsis) > maxWidth && last.length > 0) {
 			last = last.slice(0, -1);
 		}
 		clipped[clipped.length - 1] = last + ellipsis;

@@ -1,10 +1,15 @@
 import express from 'express';
+import * as path from 'path';
 import { createMessageBubble } from './QuoteMaking/withResponse';
 import { payloadSchema, resolveStyle } from './Validation';
+import { setupFonts } from './Fonts';
+
+// Resolve project root (two levels up from dist/index.js at runtime)
+const projectRoot = path.resolve(__dirname, '..', '..');
+setupFonts(projectRoot);
+
 const app = express();
 const PORT = process.env.PORT || 3699;
-
-const avatarSrc = 'https://randomuser.me/api/portraits/women/31.jpg';
 
 app.get('/status', (req, res) => {
 	res.send('Server is running');

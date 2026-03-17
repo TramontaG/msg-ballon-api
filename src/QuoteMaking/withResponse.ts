@@ -5,6 +5,8 @@ import {
 	drawInitialsAvatar,
 } from './Shapes/drawAvatar';
 import { roundRect, wrapText, drawBalloonArrow } from './Shapes';
+import { getPrimaryFamily } from '../Fonts/state';
+import { drawTextWithEmoji, measureTextWithEmoji } from './Emoji';
 
 type BubbleOptions = {
 	mode?: 'normal' | 'reply';
@@ -58,10 +60,11 @@ export async function createMessageBubble(
 	const barW = 5;
 	const barGap = 8;
 
-	const authorFont = opts.authorFont ?? 'bold 36px Arial';
-	const quotedFont = opts.quotedFont ?? '32px Arial';
-	const bodyFont = opts.bodyFont ?? '32px Arial';
-	const timeFont = opts.timeFont ?? '24px Arial';
+	const family = `"${getPrimaryFamily()}"`;
+	const authorFont = opts.authorFont ?? `bold 36px ${family}`;
+	const quotedFont = opts.quotedFont ?? `32px ${family}`;
+	const bodyFont = opts.bodyFont ?? `32px ${family}`;
+	const timeFont = opts.timeFont ?? `24px ${family}`;
 
 	// === MEDIÇÃO ===
 	const meas = canvas
@@ -177,13 +180,14 @@ export async function createMessageBubble(
 		ctx.font = authorFont;
 		ctx.fillStyle = quotedHeaderColor;
 		ctx.textBaseline = 'top';
+		// reply author is a plain name — no emoji needed
 		ctx.fillText(replyAuthor, qx, y);
 		y += authorH + 8 + 4;
 
 		ctx.font = quotedFont;
 		ctx.fillStyle = quotedTextColor;
 		for (const ln of quotedLines) {
-			ctx.fillText(ln, qx, y);
+			await drawTextWithEmoji(ctx, ln, qx, y);
 			y += quotedLineH + 4;
 		}
 
@@ -193,6 +197,7 @@ export async function createMessageBubble(
 	ctx.fillStyle = opts?.authorColor ?? '#128c7t';
 	ctx.textBaseline = 'top';
 	ctx.font = authorFont;
+	// message author is a plain name — no emoji needed
 	ctx.fillText(
 		msgAuthor.length > 15 ? msgAuthor.slice(0, 14) + '...' : msgAuthor,
 		x,
@@ -208,15 +213,15 @@ export async function createMessageBubble(
 	ctx.font = bodyFont;
 	ctx.fillStyle = textColor;
 	for (const ln of bodyLines) {
-		ctx.fillText(ln, x, y);
+		await drawTextWithEmoji(ctx, ln, x, y);
 		y += bodyLineH;
 	}
 
 	y += betweenBodyAndTime;
 	ctx.font = timeFont;
 	ctx.fillStyle = timeColor;
-	const timeWidth = ctx.measureText(timeText).width;
-	ctx.fillText(timeText, bubbleX + bubbleW - padX - timeWidth, y);
+	const timeWidth = measureTextWithEmoji(ctx, timeText);
+	await drawTextWithEmoji(ctx, timeText, bubbleX + bubbleW - padX - timeWidth, y);
 
 	return c.toBuffer('image/png');
 }
