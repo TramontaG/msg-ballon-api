@@ -41,6 +41,7 @@ app.post('/render', async (req, res, next) => {
 			timeText,
 			replyAuthor,
 			replySnippet,
+			replyMediaSrc,
 			avatarSrc,
 			width,
 			avatarSize,
@@ -80,6 +81,7 @@ app.post('/render', async (req, res, next) => {
 			...(fonts?.quotedFont ? { quotedFont: fonts.quotedFont } : {}),
 			...(fonts?.bodyFont ? { bodyFont: fonts.bodyFont } : {}),
 			...(fonts?.timeFont ? { timeFont: fonts.timeFont } : {}),
+			...(replyMediaSrc ? { replyMediaSrc } : {}),
 		} as any;
 
 		// chama o renderer unificado

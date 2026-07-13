@@ -20,6 +20,18 @@ const styleOverrideSchema = z
 	.strict()
 	.optional();
 
+const imageSourceSchema = z.string().refine(
+	s => {
+		// aceita URL, data URL ou base64 puro
+		return (
+			/^https?:\/\//.test(s) ||
+			/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(s) ||
+			/^[A-Za-z0-9+/=\s]+$/.test(s)
+		);
+	},
+	{ message: 'image source must be a URL, data URL or base64 string' }
+);
+
 export const payloadSchema = z
 	.object({
 		mode: z.enum(['normal', 'reply']).default('normal'),
@@ -35,18 +47,10 @@ export const payloadSchema = z
 		// reply-only
 		replyAuthor: z.string().max(120).optional(),
 		replySnippet: z.string().max(4000).optional(),
+		replyMediaSrc: imageSourceSchema.optional(),
 
 		// mídia
-		avatarSrc: z
-			.string()
-			.refine(
-				s => {
-					// aceita URL ou base64 “puro” (heurística simples)
-					return /^https?:\/\//.test(s) || /^[A-Za-z0-9+/=\s]+$/.test(s);
-				},
-				{ message: 'avatarSrc must be a URL or base64 string' }
-			)
-			.optional(),
+		avatarSrc: imageSourceSchema.optional(),
 
 		// layout / fontes
 		width: z.number().int().min(200).max(1200).default(400),
@@ -70,10 +74,10 @@ export const payloadSchema = z
 					message: 'replyAuthor is required when mode=reply',
 					path: ['replyAuthor'],
 				});
-			if (!val.replySnippet)
+			if (!val.replySnippet && !val.replyMediaSrc)
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: 'replySnippet is required when mode=reply',
+					message: 'replySnippet or replyMediaSrc is required when mode=reply',
 					path: ['replySnippet'],
 				});
 		}

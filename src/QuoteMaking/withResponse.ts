@@ -28,6 +28,57 @@ type BubbleOptions = {
 	avatarSize?: number;
 	avatarBorderColor?: string;
 	avatarBorderWidth?: number;
+	replyMediaSrc?: string;
+};
+
+const drawImageCover = (
+	ctx: canvas.CanvasRenderingContext2D,
+	img: canvas.Image,
+	x: number,
+	y: number,
+	w: number,
+	h: number
+) => {
+	const imageRatio = img.width / img.height;
+	const rectRatio = w / h;
+
+	let sx = 0;
+	let sy = 0;
+	let sw = img.width;
+	let sh = img.height;
+
+	if (imageRatio > rectRatio) {
+		sw = img.height * rectRatio;
+		sx = (img.width - sw) / 2;
+	} else {
+		sh = img.width / rectRatio;
+		sy = (img.height - sh) / 2;
+	}
+
+	ctx.drawImage(img as any, sx, sy, sw, sh, x, y, w, h);
+};
+
+const drawRoundedImage = (
+	ctx: canvas.CanvasRenderingContext2D,
+	img: canvas.Image,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	radius: number
+) => {
+	ctx.save();
+	ctx.beginPath();
+	const rr = Math.min(radius, w / 2, h / 2);
+	ctx.moveTo(x + rr, y);
+	ctx.arcTo(x + w, y, x + w, y + h, rr);
+	ctx.arcTo(x + w, y + h, x, y + h, rr);
+	ctx.arcTo(x, y + h, x, y, rr);
+	ctx.arcTo(x, y, x + w, y, rr);
+	ctx.closePath();
+	ctx.clip();
+	drawImageCover(ctx, img, x, y, w, h);
+	ctx.restore();
 };
 
 export async function createMessageBubble(
@@ -54,11 +105,14 @@ export async function createMessageBubble(
 	const timeColor = opts.timeColor ?? '#9ca3af';
 
 	const padX = 14;
-	const padY = 24;
-	const betweenQuoteAndBody = 10;
+	const topPad = 12;
+	const bottomPad = 18;
+	const betweenQuoteAndBody = 14;
+	const betweenAuthorAndQuote = 16;
 	const betweenBodyAndTime = 8;
 	const barW = 5;
 	const barGap = 8;
+	const replyIndent = 18;
 
 	const family = `"${getPrimaryFamily()}"`;
 	const authorFont = opts.authorFont ?? `bold 36px ${family}`;
@@ -73,18 +127,38 @@ export async function createMessageBubble(
 	const bubbleX = avatarSize + spacing;
 	const bubbleW = width - bubbleX;
 	const textMaxW = bubbleW - padX * 2;
+	const replyMaxW = textMaxW - replyIndent;
 
 	let quotedH = 0;
 	let quotedLines: string[] = [];
 	let authorH = 0;
 	let quotedLineH = 0;
+	let quotedMedia: canvas.Image | null = null;
+	let quotedMediaW = 0;
+	let quotedMediaH = 0;
 
-	if (mode === 'reply' && replyAuthor && replySnippet) {
+	const hasReplyContent = mode === 'reply' && replyAuthor && (replySnippet || opts.replyMediaSrc);
+
+	if (hasReplyContent) {
 		meas.font = authorFont;
 		const aMet = meas.measureText(replyAuthor);
 		authorH = Math.ceil(
 			(aMet.actualBoundingBoxAscent ?? 14) + (aMet.actualBoundingBoxDescent ?? 4)
 		);
+
+		if (opts.replyMediaSrc) {
+			quotedMedia = await loadImageFromInput(opts.replyMediaSrc);
+			const maxMediaW = replyMaxW - barW - barGap;
+			const maxMediaH = 140;
+			const mediaRatio = quotedMedia.width / quotedMedia.height;
+			quotedMediaW = maxMediaW;
+			quotedMediaH = quotedMediaW / mediaRatio;
+
+			if (quotedMediaH > maxMediaH) {
+				quotedMediaH = maxMediaH;
+				quotedMediaW = quotedMediaH * mediaRatio;
+			}
+		}
 
 		meas.font = quotedFont;
 		const qMet = meas.measureText('Mg');
@@ -92,8 +166,14 @@ export async function createMessageBubble(
 			Math.ceil(
 				(qMet.actualBoundingBoxAscent ?? 12) + (qMet.actualBoundingBoxDescent ?? 4)
 			) + 2;
-		quotedLines = wrapText(meas, replySnippet, textMaxW - barW - barGap);
-		quotedH = authorH + 4 + quotedLines.length * (quotedLineH + 4);
+		quotedLines = replySnippet
+			? wrapText(meas, replySnippet, replyMaxW - barW - barGap)
+			: [];
+		quotedH =
+			authorH +
+			4 +
+			(quotedMedia ? quotedMediaH + 10 : 0) +
+			quotedLines.length * (quotedLineH + 5);
 	}
 
 	meas.font = bodyFont;
@@ -105,6 +185,13 @@ export async function createMessageBubble(
 	const bodyLines = wrapText(meas, bodyText, textMaxW);
 	const bodyH = bodyLines.length * bodyLineH;
 
+	meas.font = authorFont;
+	const msgAuthorMet = meas.measureText(msgAuthor);
+	const msgAuthorH = Math.ceil(
+		(msgAuthorMet.actualBoundingBoxAscent ?? 14) +
+			(msgAuthorMet.actualBoundingBoxDescent ?? 4)
+	);
+
 	meas.font = timeFont;
 	const tMet = meas.measureText(timeText);
 	const timeH = Math.ceil(
@@ -112,12 +199,14 @@ export async function createMessageBubble(
 	);
 
 	const bubbleH =
-		padY +
-		(mode === 'reply' ? quotedH + betweenQuoteAndBody : 0) +
+		topPad +
+		msgAuthorH +
+		(hasReplyContent ? betweenAuthorAndQuote + quotedH + betweenQuoteAndBody : 0) +
+		(!hasReplyContent ? opts?.authorToBodyGap ?? 12 : 0) +
 		bodyH +
 		betweenBodyAndTime +
 		timeH +
-		padY * 2;
+		bottomPad;
 
 	const height = Math.max(bubbleH, avatarSize);
 
@@ -169,30 +258,7 @@ export async function createMessageBubble(
 
 	// textos
 	let x = bubbleX + padX;
-	let y = padY / 2;
-
-	if (mode === 'reply' && replyAuthor && replySnippet) {
-		// barra
-		ctx.fillStyle = quotedBarColor;
-		ctx.fillRect(x, y, barW, quotedH + 8 + quotedLines.length);
-
-		const qx = x + barW + barGap;
-		ctx.font = authorFont;
-		ctx.fillStyle = quotedHeaderColor;
-		ctx.textBaseline = 'top';
-		// reply author is a plain name — no emoji needed
-		ctx.fillText(replyAuthor, qx, y);
-		y += authorH + 8 + 4;
-
-		ctx.font = quotedFont;
-		ctx.fillStyle = quotedTextColor;
-		for (const ln of quotedLines) {
-			await drawTextWithEmoji(ctx, ln, qx, y);
-			y += quotedLineH + 4;
-		}
-
-		y += betweenQuoteAndBody;
-	}
+	let y = topPad;
 
 	ctx.fillStyle = opts?.authorColor ?? '#128c7t';
 	ctx.textBaseline = 'top';
@@ -203,12 +269,36 @@ export async function createMessageBubble(
 		x,
 		y
 	);
+	y += msgAuthorH + (hasReplyContent ? betweenAuthorAndQuote : opts?.authorToBodyGap ?? 12);
 
-	// avança Y pelo autor + gap
-	let m = ctx.measureText(msgAuthor);
-	const authorDrawnHeight =
-		m.actualBoundingBoxAscent + (m.actualBoundingBoxDescent ?? 0);
-	y += authorDrawnHeight + (opts?.authorToBodyGap ?? 12);
+	if (hasReplyContent) {
+		const replyX = x + replyIndent;
+		// barra
+		ctx.fillStyle = quotedBarColor;
+		ctx.fillRect(replyX, y, barW, quotedH + 10 + quotedLines.length);
+
+		const qx = replyX + barW + barGap;
+		ctx.font = authorFont;
+		ctx.fillStyle = quotedHeaderColor;
+		ctx.textBaseline = 'top';
+		// reply author is a plain name — no emoji needed
+		ctx.fillText(replyAuthor, qx, y);
+		y += authorH + 12;
+
+		if (quotedMedia) {
+			drawRoundedImage(ctx, quotedMedia, qx, y, quotedMediaW, quotedMediaH, 8);
+			y += quotedMediaH + 10;
+		}
+
+		ctx.font = quotedFont;
+		ctx.fillStyle = quotedTextColor;
+		for (const ln of quotedLines) {
+			await drawTextWithEmoji(ctx, ln, qx, y);
+			y += quotedLineH + 5;
+		}
+
+		y += betweenQuoteAndBody;
+	}
 
 	ctx.font = bodyFont;
 	ctx.fillStyle = textColor;
@@ -221,7 +311,7 @@ export async function createMessageBubble(
 	ctx.font = timeFont;
 	ctx.fillStyle = timeColor;
 	const timeWidth = measureTextWithEmoji(ctx, timeText);
-	await drawTextWithEmoji(ctx, timeText, bubbleX + bubbleW - padX - timeWidth, y);
+	await drawTextWithEmoji(ctx, timeText, bubbleX + bubbleW - padX - timeWidth, y - 2);
 
 	return c.toBuffer('image/png');
 }
